@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cotizador — Muebles</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --cream: #FAF8F4;
+    --warm-white: #FFFEF9;
+    --tan: #E8E0D0;
+    --sand: #D4C9B2;
+    --brown: #8B6F47;
+    --dark-brown: #3D2B1F;
+    --accent: #C4956A;
+    --accent-dark: #A07040;
+    --text: #2A1F14;
+    --text-muted: #8A7A6A;
+    --border: #DDD5C5;
+    --success: #4A7C59;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    background: var(--dark-brown);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px; font-size: 13px;
+    font-family: 'DM Sans', sans-serif; font-weight: 500;
+    cursor: pointer; border: none; transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-outline { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,0.35); }
+  .btn-outline:hover { background: rgba(255,255,255,0.1); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-danger { background: #c0392b; color: #fff; }
+  .btn-danger:hover { background: #a93226; }
+
+  /* ── LAYOUT ── */
+  .app {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 0;
+    height: calc(100vh - 56px);
+  }
+
+  /* ── LEFT PANEL: Catálogo ── */
+  .panel-catalog {
+    background: var(--warm-white);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 10px;
+    color: var(--dark-brown);
+  }
+  .search-box {
+    position: relative;
+  }
+  .search-box input {
+    width: 100%; padding: 9px 14px 9px 36px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    background: var(--cream); color: var(--text);
+    outline: none; transition: border-color 0.2s;
+  }
+  .search-box input:focus { border-color: var(--accent); }
+  .search-icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); font-size: 14px; pointer-events: none;
+  }
+
+  .shopify-bar {
+    margin: 10px 20px 0;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .shopify-bar input {
+    flex: 1; padding: 7px 10px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 12px;
+    background: var(--cream); color: var(--text); outline: none;
+  }
+  .shopify-bar input:focus { border-color: var(--accent); }
+  .shopify-status {
+    font-size: 11px; padding: 4px 10px; border-radius: 20px;
+    font-weight: 500; white-space: nowrap;
+  }
+  .status-demo { background: #FEF3C7; color: #92400E; }
+  .status-live { background: #D1FAE5; color: #065F46; }
+
+  .catalog-list {
+    flex: 1; overflow-y: auto; padding: 12px;
+    display: grid; gap: 10px;
+  }
+  .catalog-list::-webkit-scrollbar { width: 4px; }
+  .catalog-list::-webkit-scrollbar-track { background: transparent; }
+  .catalog-list::-webkit-scrollbar-thumb { background: var(--sand); border-radius: 4px; }
+
+  .product-card {
+    background: var(--cream);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .product-card:hover { border-color: var(--accent); box-shadow: 0 2px 12px rgba(196,149,106,0.18); }
+  .product-card.selected { border-color: var(--accent); background: #FFF8F2; }
+  .product-thumb {
+    width: 80px; height: 80px; object-fit: cover; flex-shrink: 0;
+    background: var(--tan);
+  }
+  .product-info {
+    padding: 10px 12px; flex: 1; min-width: 0;
+  }
+  .product-name {
+    font-size: 13px; font-weight: 500; color: var(--dark-brown);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 3px;
+  }
+  .product-desc {
+    font-size: 11px; color: var(--text-muted); line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .product-price {
+    font-size: 14px; font-weight: 500; color: var(--accent-dark);
+  }
+  .product-variants {
+    font-size: 10px; color: var(--text-muted); margin-top: 2px;
+  }
+  .add-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; flex-shrink: 0;
+    color: var(--accent); font-size: 22px;
+    transition: all 0.15s;
+  }
+  .product-card:hover .add-btn { color: var(--accent-dark); }
+
+  /* ── RIGHT PANEL: Cotización ── */
+  .panel-quote {
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .quote-header {
+    padding: 16px 24px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--warm-white);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .quote-title-block {}
+  .quote-folio {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px; color: var(--dark-brown);
+  }
+  .quote-meta {
+    font-size: 12px; color: var(--text-muted); margin-top: 2px;
+  }
+
+  .client-strip {
+    background: #FFF8F2;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+  }
+  .client-strip label { font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+  .client-strip input, .client-strip select {
+    padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; background: #fff;
+    color: var(--text); outline: none; transition: border-color 0.2s;
+  }
+  .client-strip input:focus, .client-strip select:focus { border-color: var(--accent); }
+  .client-field { display: flex; flex-direction: column; gap: 4px; }
+  .client-field input { width: 180px; }
+  .client-field.wide input { width: 220px; }
+
+  .quote-body { flex: 1; overflow-y: auto; padding: 16px 24px; }
+  .quote-body::-webkit-scrollbar { width: 4px; }
+  .quote-body::-webkit-scrollbar-thumb { background: var(--sand); border-radius: 4px; }
+
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; color: var(--text-muted); gap: 12px;
+  }
+  .empty-icon { font-size: 48px; opacity: 0.3; }
+  .empty-text { font-size: 14px; text-align: center; line-height: 1.6; }
+
+  /* Quote items */
+  .quote-item {
+    display: grid;
+    grid-template-columns: 70px 1fr auto;
+    gap: 12px;
+    align-items: start;
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: box-shadow 0.2s;
+    position: relative;
+  }
+  .quote-item:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+  .qi-img {
+    width: 70px; height: 70px; object-fit: cover; border-radius: 8px; background: var(--tan);
+  }
+  .qi-info { flex: 1; }
+  .qi-name { font-size: 14px; font-weight: 500; color: var(--dark-brown); margin-bottom: 4px; }
+  .qi-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-bottom: 8px; }
+  .qi-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .qi-variant select {
+    padding: 5px 8px; border: 1.5px solid var(--border); border-radius: 6px;
+    font-family: 'DM Sans', sans-serif; font-size: 12px; background: var(--cream);
+    color: var(--text); outline: none;
+  }
+  .qi-variant select:focus { border-color: var(--accent); }
+  .qty-control { display: flex; align-items: center; gap: 6px; }
+  .qty-btn {
+    width: 26px; height: 26px; border-radius: 6px; border: 1.5px solid var(--border);
+    background: var(--cream); color: var(--text); font-size: 16px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-weight: 300; transition: all 0.15s; line-height: 1;
+  }
+  .qty-btn:hover { border-color: var(--accent); background: #FFF8F2; }
+  .qty-val { font-size: 14px; font-weight: 500; min-width: 20px; text-align: center; }
+  .qi-price-col { text-align: right; min-width: 100px; }
+  .qi-unit-price { font-size: 11px; color: var(--text-muted); }
+  .qi-total { font-size: 16px; font-weight: 500; color: var(--dark-brown); }
+  .qi-remove {
+    position: absolute; top: 10px; right: 10px;
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 16px; padding: 2px 4px;
+    border-radius: 4px; transition: all 0.15s;
+  }
+  .qi-remove:hover { color: #c0392b; background: #FEE2E2; }
+
+  .notes-area {
+    margin-top: 8px;
+  }
+  .notes-area label { font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px; }
+  .notes-area textarea {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border);
+    border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px;
+    background: #fff; color: var(--text); resize: vertical; min-height: 70px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .notes-area textarea:focus { border-color: var(--accent); }
+
+  /* Totals */
+  .quote-footer {
+    background: var(--warm-white);
+    border-top: 1px solid var(--border);
+    padding: 14px 24px;
+  }
+  .totals-grid {
+    display: flex; flex-direction: column; gap: 6px;
+    max-width: 320px; margin-left: auto; margin-bottom: 12px;
+  }
+  .total-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; color: var(--text-muted);
+  }
+  .total-row.grand {
+    font-size: 17px; font-weight: 500; color: var(--dark-brown);
+    padding-top: 8px; border-top: 1.5px solid var(--border); margin-top: 2px;
+  }
+  .footer-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* ── MODAL: Configuración tienda ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--warm-white); border-radius: 16px;
+    padding: 28px; width: 480px; max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px; color: var(--dark-brown); margin-bottom: 16px;
+  }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+  .form-group input, .form-group textarea {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border);
+    border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px;
+    background: var(--cream); color: var(--text); outline: none; transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group textarea:focus { border-color: var(--accent); }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  /* Variant modal */
+  .variant-modal { width: 400px; }
+  .variant-options { display: grid; gap: 8px; margin: 12px 0; }
+  .variant-opt {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border: 1.5px solid var(--border);
+    border-radius: 8px; cursor: pointer; transition: all 0.15s;
+    background: var(--cream);
+  }
+  .variant-opt:hover { border-color: var(--accent); background: #FFF8F2; }
+  .variant-opt.selected { border-color: var(--accent); background: #FFF8F2; }
+  .variant-opt-name { font-size: 13px; font-weight: 500; flex: 1; }
+  .variant-opt-price { font-size: 14px; color: var(--accent-dark); font-weight: 500; }
+  .color-swatch {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid rgba(0,0,0,0.15); flex-shrink: 0;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--dark-brown); color: #fff;
+    padding: 10px 20px; border-radius: 8px; font-size: 13px;
+    transition: transform 0.3s; z-index: 500; pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Loading */
+  .loading-dots {
+    display: inline-flex; gap: 4px;
+  }
+  .loading-dots span {
+    width: 6px; height: 6px; background: var(--accent);
+    border-radius: 50%; animation: bounce 1s infinite;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-6px); }
+  }
+
+  /* ── PDF TEMPLATE (hidden) ── */
+  #pdf-template {
+    display: none;
+    width: 794px;
+    background: #fff;
+    font-family: 'DM Sans', sans-serif;
+    color: #2A1F14;
+    font-size: 12px;
+    padding: 0;
+  }
+  .pdf-header {
+    background: #3D2B1F;
+    color: #fff;
+    padding: 28px 40px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .pdf-logo { font-family: 'Playfair Display', serif; font-size: 26px; color: #C4956A; }
+  .pdf-store-info { font-size: 11px; color: rgba(255,255,255,0.75); line-height: 1.8; text-align: right; }
+  .pdf-folio-bar {
+    background: #C4956A;
+    padding: 10px 40px;
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: #fff; font-weight: 500;
+  }
+  .pdf-client-section {
+    padding: 20px 40px 12px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    border-bottom: 1px solid #E8E0D0;
+  }
+  .pdf-section-label {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #8A7A6A; font-weight: 500; margin-bottom: 4px;
+  }
+  .pdf-section-value { font-size: 12px; color: #2A1F14; line-height: 1.6; }
+  .pdf-items { padding: 16px 40px; }
+  .pdf-items-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 80px 70px 80px 80px;
+    gap: 8px;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: #8A7A6A; font-weight: 500;
+    padding: 6px 0; border-bottom: 1.5px solid #D4C9B2;
+    margin-bottom: 8px;
+  }
+  .pdf-item-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 80px 70px 80px 80px;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #F0EAE0;
+  }
+  .pdf-item-img { width: 54px; height: 54px; object-fit: cover; border-radius: 6px; background: #E8E0D0; }
+  .pdf-item-name { font-size: 12px; font-weight: 500; color: #3D2B1F; }
+  .pdf-item-desc { font-size: 10px; color: #8A7A6A; margin-top: 2px; line-height: 1.4; }
+  .pdf-item-variant { font-size: 10px; color: #C4956A; margin-top: 2px; }
+  .pdf-cell-right { text-align: right; font-size: 12px; color: #2A1F14; }
+  .pdf-cell-center { text-align: center; font-size: 12px; }
+  .pdf-total-section {
+    padding: 12px 40px 20px;
+    display: flex; justify-content: flex-end;
+  }
+  .pdf-totals { width: 260px; }
+  .pdf-total-row {
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: #8A7A6A; padding: 4px 0;
+  }
+  .pdf-total-row.grand {
+    font-size: 15px; font-weight: 600; color: #3D2B1F;
+    border-top: 1.5px solid #D4C9B2; padding-top: 8px; margin-top: 4px;
+  }
+  .pdf-banking {
+    margin: 0 40px 20px;
+    background: #FAF8F4;
+    border: 1px solid #E8E0D0;
+    border-radius: 8px;
+    padding: 14px 18px;
+  }
+  .pdf-banking-title {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #8A7A6A; font-weight: 500; margin-bottom: 8px;
+  }
+  .pdf-banking-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  }
+  .pdf-banking-item { font-size: 11px; color: #2A1F14; line-height: 1.6; }
+  .pdf-banking-label { color: #8A7A6A; font-size: 10px; }
+  .pdf-notes-section {
+    margin: 0 40px 20px;
+  }
+  .pdf-terms {
+    padding: 0 40px 20px;
+    font-size: 10px; color: #8A7A6A; line-height: 1.7;
+    border-top: 1px solid #E8E0D0; padding-top: 16px;
+  }
+  .pdf-footer {
+    background: #F0EAE0;
+    padding: 12px 40px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; color: #8A7A6A;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo" id="brand-name">Mi Mueblería</div>
+  <div class="topbar-actions">
+    <span class="shopify-status status-demo" id="conn-status">● Demo</span>
+    <button class="btn btn-outline btn-sm" onclick="openStoreModal()">⚙ Configurar tienda</button>
+    <button class="btn btn-primary btn-sm" onclick="exportPDF()">↓ Exportar PDF</button>
+  </div>
+</div>
+
+<!-- APP LAYOUT -->
+<div class="app">
+
+  <!-- LEFT: CATÁLOGO -->
+  <div class="panel-catalog">
+    <div class="panel-header">
+      <div class="panel-title">Catálogo de productos</div>
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="search-input" placeholder="Buscar mueble..." oninput="filterProducts()">
+      </div>
+    </div>
+    <div style="padding: 10px 12px 0; display:flex; gap:6px; align-items:center;">
+      <input type="text" id="shopify-store" placeholder="tu-tienda.myshopify.com" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;background:var(--cream);color:var(--text);outline:none;">
+      <input type="text" id="shopify-token" placeholder="Token Storefront API" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;background:var(--cream);color:var(--text);outline:none;">
+      <button class="btn btn-primary btn-sm" onclick="connectShopify()" title="Conectar Shopify">↻</button>
+    </div>
+    <div id="catalog-loading" style="display:none;padding:20px;text-align:center;"><div class="loading-dots"><span></span><span></span><span></span></div></div>
+    <div class="catalog-list" id="catalog-list"><!-- products injected --></div>
+  </div>
+
+  <!-- RIGHT: COTIZACIÓN -->
+  <div class="panel-quote">
+    <div class="quote-header">
+      <div class="quote-title-block">
+        <div class="quote-folio" id="folio-display">Cotización #001</div>
+        <div class="quote-meta" id="quote-meta-display">—</div>
+      </div>
+      <button class="btn btn-outline" style="color:var(--text-muted);border-color:var(--border);font-size:12px;" onclick="resetQuote()">+ Nueva cotización</button>
+    </div>
+
+    <div class="client-strip">
+      <div class="client-field wide">
+        <label>Cliente</label>
+        <input type="text" id="client-name" placeholder="Nombre del cliente" oninput="updateMeta()">
+      </div>
+      <div class="client-field">
+        <label>Teléfono / Email</label>
+        <input type="text" id="client-contact" placeholder="Tel o email">
+      </div>
+      <div class="client-field">
+        <label>Ciudad / Lugar</label>
+        <input type="text" id="client-city" placeholder="Ej. Mérida, Yucatán">
+      </div>
+      <div class="client-field">
+        <label>Vigencia</label>
+        <input type="date" id="quote-expiry">
+      </div>
+    </div>
+
+    <div class="quote-body" id="quote-body">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">🛋</div>
+        <div class="empty-text">Selecciona productos del catálogo<br>para armar la cotización</div>
+      </div>
+    </div>
+
+    <div class="quote-footer">
+      <div class="totals-grid">
+        <div class="total-row"><span>Subtotal</span><span id="t-sub">$0.00</span></div>
+        <div class="total-row"><span>IVA (16%)</span><span id="t-iva">$0.00</span></div>
+        <div class="total-row grand"><span>Total</span><span id="t-total">$0.00</span></div>
+      </div>
+      <div class="notes-area">
+        <label>Notas / Condiciones de entrega</label>
+        <textarea id="quote-notes" placeholder="Tiempo de entrega, condiciones especiales, etc."></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VARIANT MODAL -->
+<div class="modal-overlay" id="variant-modal">
+  <div class="modal variant-modal">
+    <h2 id="vm-title">Selecciona variante</h2>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px;" id="vm-desc"></p>
+    <div class="variant-options" id="vm-options"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" style="color:var(--text-muted);border-color:var(--border);" onclick="closeVariantModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmVariant()">Agregar a cotización</button>
+    </div>
+  </div>
+</div>
+
+<!-- STORE CONFIG MODAL -->
+<div class="modal-overlay" id="store-modal">
+  <div class="modal">
+    <h2>Configuración de la tienda</h2>
+    <div class="form-group">
+      <label>Nombre del negocio</label>
+      <input type="text" id="cfg-name" placeholder="Mi Mueblería">
+    </div>
+    <div class="form-group">
+      <label>Dirección</label>
+      <input type="text" id="cfg-address" placeholder="Calle, Colonia, Ciudad">
+    </div>
+    <div class="form-group">
+      <label>Teléfono</label>
+      <input type="text" id="cfg-phone" placeholder="+52 999 000 0000">
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="text" id="cfg-email" placeholder="ventas@mimuebleria.mx">
+    </div>
+    <div class="form-group">
+      <label>Datos bancarios para depósito / transferencia</label>
+      <textarea id="cfg-banking" placeholder="Banco: BBVA&#10;CLABE: 0123 4567 8901 2345 67&#10;Titular: Mi Mueblería S.A. de C.V."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Términos y condiciones</label>
+      <textarea id="cfg-terms" placeholder="Precios en MXN con IVA incluido. Entrega sujeta a disponibilidad..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" style="color:var(--text-muted);border-color:var(--border);" onclick="closeStoreModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveStoreConfig()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF TEMPLATE (hidden) -->
+<div id="pdf-template">
+  <div class="pdf-header">
+    <div>
+      <div class="pdf-logo" id="pdf-logo">Mi Mueblería</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:6px;" id="pdf-store-addr"></div>
+    </div>
+    <div class="pdf-store-info" id="pdf-store-info"></div>
+  </div>
+  <div class="pdf-folio-bar">
+    <span id="pdf-folio-num">COTIZACIÓN #001</span>
+    <span id="pdf-folio-date"></span>
+    <span id="pdf-folio-expiry"></span>
+    <span id="pdf-folio-place"></span>
+  </div>
+  <div class="pdf-client-section">
+    <div>
+      <div class="pdf-section-label">Cliente</div>
+      <div class="pdf-section-value" id="pdf-client-name">—</div>
+      <div style="font-size:11px;color:#8A7A6A;margin-top:3px;" id="pdf-client-contact"></div>
+    </div>
+    <div style="text-align:right;">
+      <div class="pdf-section-label">Vendedora / Sucursal</div>
+      <div class="pdf-section-value" id="pdf-store-name2">—</div>
+    </div>
+  </div>
+  <div class="pdf-items">
+    <div class="pdf-items-header">
+      <span>Img</span><span>Producto</span><span style="text-align:right;">P. Unitario</span><span style="text-align:center;">Cant.</span><span style="text-align:right;">Subtotal</span><span style="text-align:right;">Total c/IVA</span>
+    </div>
+    <div id="pdf-items-body"></div>
+  </div>
+  <div class="pdf-total-section">
+    <div class="pdf-totals">
+      <div class="pdf-total-row"><span>Subtotal</span><span id="pdf-sub"></span></div>
+      <div class="pdf-total-row"><span>IVA (16%)</span><span id="pdf-iva"></span></div>
+      <div class="pdf-total-row grand"><span>Total</span><span id="pdf-total"></span></div>
+    </div>
+  </div>
+  <div class="pdf-banking" id="pdf-banking-section">
+    <div class="pdf-banking-title">Datos para pago — depósito / transferencia</div>
+    <div id="pdf-banking-content" style="font-size:12px;color:#2A1F14;line-height:1.8;white-space:pre-line;"></div>
+  </div>
+  <div class="pdf-notes-section" id="pdf-notes-section" style="display:none;">
+    <div class="pdf-section-label" style="margin-bottom:4px;">Notas</div>
+    <div style="font-size:12px;color:#2A1F14;line-height:1.6;" id="pdf-notes-text"></div>
+  </div>
+  <div class="pdf-terms" id="pdf-terms-section"></div>
+  <div class="pdf-footer">
+    <span id="pdf-footer-store"></span>
+    <span>Cotización generada digitalmente · Precios sujetos a cambio sin previo aviso</span>
+    <span id="pdf-footer-folio"></span>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──
+let products = [];
+let quoteItems = [];
+let quoteCounter = 1;
+let selectedVariant = null;
+let pendingProduct = null;
+let storeConfig = {
+  name: 'Mi Mueblería',
+  address: 'Mérida, Yucatán, México',
+  phone: '+52 999 000 0000',
+  email: 'ventas@mimuebleria.mx',
+  banking: 'Banco: BBVA\nCLABE: 0123 4567 8901 2345 67\nTitular: Mi Mueblería S.A. de C.V.',
+  terms: 'Precios en pesos mexicanos (MXN). IVA incluido en el total. Entrega sujeta a disponibilidad de inventario. Cotización vigente hasta la fecha indicada. Se requiere 50% de anticipo para apartar el pedido.'
+};
+
+// ── DEMO PRODUCTS ──
+const demoProducts = [
+  { id:'1', title:'Sofá Milán 3 plazas', description:'Estructura de madera maciza con cojines de espuma de alta densidad. Ideal para salas modernas.', price:18900, image:'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=300&q=80', variants:[{name:'Beige lino'},{name:'Gris marengo'},{name:'Verde musgo'},{name:'Azul petróleo'}]},
+  { id:'2', title:'Mesa de centro Nogal', description:'Mesa de madera de nogal con patas de acero negro. Superficie tratada con aceite natural.', price:6500, image:'https://images.unsplash.com/photo-1549187774-b4e9b0445b41?w=300&q=80', variants:[{name:'Nogal natural'},{name:'Nogal oscuro'}]},
+  { id:'3', title:'Silla Escandinava Roble', description:'Silla de diseño nórdico, madera de roble y tapizado en tela. Ergonómica y liviana.', price:3200, image:'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=300&q=80', variants:[{name:'Roble + gris'},{name:'Roble + mostaza'},{name:'Roble + coral'}]},
+  { id:'4', title:'Cama King Serenity', description:'Cabecera tapizada en tela boucle, estructura de madera de pino, incluye somier.', price:28500, image:'https://images.unsplash.com/photo-1505693314120-0d443867891c?w=300&q=80', variants:[{name:'Blanco hueso'},{name:'Gris claro'},{name:'Arena'}]},
+  { id:'5', title:'Librero Industrial 5 niveles', description:'Estructura de acero negro y tablillas de MDF enchapado en madera. 180cm de alto.', price:7800, image:'https://images.unsplash.com/photo-1600585152220-90363fe7e115?w=300&q=80', variants:[{name:'Negro + roble'},{name:'Negro + blanco'}]},
+  { id:'6', title:'Comedor Toscana 6 personas', description:'Mesa extensible de madera maciza con 6 sillas tapizadas. Resistente y elegante.', price:42000, image:'https://images.unsplash.com/photo-1615066736069-5a7d4e7c2c4b?w=300&q=80', variants:[{name:'Roble + lino'},{name:'Nogal + gris'}]},
+  { id:'7', title:'Velador Mínimal', description:'Mesita de noche con cajón y patas cónicas de roble. Diseño limpio y funcional.', price:2900, image:'https://images.unsplash.com/photo-1616627052149-b4c5e7e03f07?w=300&q=80', variants:[{name:'Blanco matte'},{name:'Roble natural'}]},
+  { id:'8', title:'Sillón Chester Cuero', description:'Sillón individual estilo Chester, cuero genuino italiano, patas talladas en madera.', price:14200, image:'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=300&q=80', variants:[{name:'Cognac'},{name:'Chocolate'},{name:'Negro'}]},
+];
+
+// ── INIT ──
+function init() {
+  products = demoProducts;
+  renderCatalog(products);
+  updateFolio();
+  setDefaultExpiry();
+  updateMeta();
+}
+
+function setDefaultExpiry() {
+  const d = new Date();
+  d.setDate(d.getDate() + 15);
+  document.getElementById('quote-expiry').value = d.toISOString().split('T')[0];
+}
+
+function updateFolio() {
+  const n = String(quoteCounter).padStart(3,'0');
+  document.getElementById('folio-display').textContent = `Cotización #${n}`;
+}
+
+function updateMeta() {
+  const client = document.getElementById('client-name').value;
+  const today = new Date().toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('quote-meta-display').textContent = `${today}${client ? ' · ' + client : ''}`;
+}
+
+// ── CATALOG ──
+function renderCatalog(list) {
+  const el = document.getElementById('catalog-list');
+  el.innerHTML = list.map(p => `
+    <div class="product-card" onclick="addProduct('${p.id}')" id="pc-${p.id}">
+      <img class="product-thumb" src="${p.image}" alt="${p.title}" loading="lazy">
+      <div class="product-info">
+        <div class="product-name">${p.title}</div>
+        <div class="product-desc">${p.description}</div>
+        <div class="product-price">${fmtMXN(p.price)}</div>
+        <div class="product-variants">${p.variants.map(v=>v.name).join(' · ')}</div>
+      </div>
+      <div class="add-btn">+</div>
+    </div>
+  `).join('');
+}
+
+function filterProducts() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const filtered = q ? products.filter(p => p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)) : products;
+  renderCatalog(filtered);
+}
+
+// ── SHOPIFY ──
+async function connectShopify() {
+  const store = document.getElementById('shopify-store').value.trim();
+  const token = document.getElementById('shopify-token').value.trim();
+  if (!store || !token) { showToast('Ingresa el dominio y token de Shopify'); return; }
+
+  document.getElementById('catalog-loading').style.display = 'block';
+  document.getElementById('catalog-list').innerHTML = '';
+
+  const query = `{
+    products(first: 50) {
+      edges { node {
+        id title description
+        priceRange { minVariantPrice { amount } }
+        images(first:1) { edges { node { url } } }
+        variants(first:10) { edges { node { id title price { amount } } } }
+      }}
+    }
+  }`;
+
+  try {
+    const res = await fetch(`https://${store}/api/2024-01/graphql.json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': token },
+      body: JSON.stringify({ query })
+    });
+    const data = await res.json();
+    if (data.errors) throw new Error(data.errors[0].message);
+
+    products = data.data.products.edges.map(e => {
+      const n = e.node;
+      return {
+        id: n.id,
+        title: n.title,
+        description: n.description || '',
+        price: parseFloat(n.priceRange.minVariantPrice.amount),
+        image: n.images.edges[0]?.node.url || '',
+        variants: n.variants.edges.map(v => ({ name: v.node.title, price: parseFloat(v.node.price.amount) }))
+      };
+    });
+
+    renderCatalog(products);
+    document.getElementById('conn-status').textContent = '● Shopify conectado';
+    document.getElementById('conn-status').className = 'shopify-status status-live';
+    showToast(`✓ ${products.length} productos cargados desde Shopify`);
+  } catch(err) {
+    showToast('Error al conectar con Shopify: ' + err.message);
+    renderCatalog(demoProducts);
+    products = demoProducts;
+  } finally {
+    document.getElementById('catalog-loading').style.display = 'none';
+  }
+}
+
+// ── ADD PRODUCT ──
+function addProduct(pid) {
+  const p = products.find(x => x.id === pid);
+  if (!p) return;
+  pendingProduct = p;
+  selectedVariant = null;
+
+  if (p.variants && p.variants.length > 1) {
+    openVariantModal(p);
+  } else {
+    selectedVariant = p.variants[0] || { name: 'Estándar', price: p.price };
+    confirmVariant();
+  }
+}
+
+function openVariantModal(p) {
+  document.getElementById('vm-title').textContent = p.title;
+  document.getElementById('vm-desc').textContent = 'Selecciona el acabado o material:';
+  const opts = document.getElementById('vm-options');
+  opts.innerHTML = p.variants.map((v,i) => `
+    <div class="variant-opt" id="vo-${i}" onclick="selectVariant(${i}, this)">
+      <div class="variant-opt-name">${v.name}</div>
+      <div class="variant-opt-price">${fmtMXN(v.price || p.price)}</div>
+    </div>
+  `).join('');
+  document.getElementById('variant-modal').classList.add('open');
+}
+
+function selectVariant(i, el) {
+  document.querySelectorAll('.variant-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedVariant = { ...pendingProduct.variants[i], price: pendingProduct.variants[i].price || pendingProduct.price };
+}
+
+function closeVariantModal() {
+  document.getElementById('variant-modal').classList.remove('open');
+  pendingProduct = null; selectedVariant = null;
+}
+
+function confirmVariant() {
+  if (!selectedVariant && pendingProduct.variants.length > 1) { showToast('Selecciona una variante'); return; }
+  if (!selectedVariant) selectedVariant = { name: pendingProduct.variants[0]?.name || 'Estándar', price: pendingProduct.price };
+  closeVariantModal();
+
+  const existing = quoteItems.find(i => i.id === pendingProduct.id && i.variant === selectedVariant.name);
+  if (existing) {
+    existing.qty++;
+  } else {
+    quoteItems.push({
+      id: pendingProduct.id,
+      title: pendingProduct.title,
+      description: pendingProduct.description,
+      image: pendingProduct.image,
+      price: selectedVariant.price || pendingProduct.price,
+      variant: selectedVariant.name,
+      qty: 1,
+      uid: Date.now()
+    });
+  }
+  renderQuote();
+  showToast(`+ ${pendingProduct.title} agregado`);
+  pendingProduct = null; selectedVariant = null;
+}
+
+// ── QUOTE RENDER ──
+function renderQuote() {
+  const body = document.getElementById('quote-body');
+  const empty = document.getElementById('empty-state');
+
+  if (quoteItems.length === 0) {
+    empty.style.display = 'flex';
+    body.innerHTML = '';
+    body.appendChild(empty);
+    updateTotals();
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  body.innerHTML = quoteItems.map(item => `
+    <div class="quote-item" id="qi-${item.uid}">
+      <img class="qi-img" src="${item.image}" alt="${item.title}" loading="lazy">
+      <div class="qi-info">
+        <div class="qi-name">${item.title}</div>
+        <div class="qi-desc">${item.description.slice(0,100)}${item.description.length>100?'…':''}</div>
+        <div class="qi-controls">
+          <span class="qi-variant"><select onchange="changeVariant(${item.uid}, this.value)">
+            ${(() => { const p = products.find(x=>x.id===item.id); return p ? p.variants.map(v=>`<option value="${v.name}" ${v.name===item.variant?'selected':''}>${v.name}</option>`).join('') : `<option>${item.variant}</option>`; })()}
+          </select></span>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeQty(${item.uid},-1)">−</button>
+            <span class="qty-val">${item.qty}</span>
+            <button class="qty-btn" onclick="changeQty(${item.uid},1)">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="qi-price-col">
+        <div class="qi-unit-price">${fmtMXN(item.price)} c/u</div>
+        <div class="qi-total">${fmtMXN(item.price * item.qty)}</div>
+      </div>
+      <button class="qi-remove" onclick="removeItem(${item.uid})">✕</button>
+    </div>
+  `).join('') + '<div style="height:10px;"></div>';
+
+  body.innerHTML += `<div class="notes-area"><label>Notas / Condiciones de entrega</label><textarea id="quote-notes" placeholder="Tiempo de entrega, condiciones especiales, etc.">${document.getElementById('quote-notes')?.value||''}</textarea></div>`;
+
+  updateTotals();
+}
+
+function changeQty(uid, delta) {
+  const item = quoteItems.find(i=>i.uid===uid);
+  if (!item) return;
+  item.qty = Math.max(1, item.qty + delta);
+  renderQuote();
+}
+
+function changeVariant(uid, variantName) {
+  const item = quoteItems.find(i=>i.uid===uid);
+  if (!item) return;
+  const p = products.find(x=>x.id===item.id);
+  const v = p?.variants.find(v=>v.name===variantName);
+  item.variant = variantName;
+  if (v?.price) item.price = v.price;
+  renderQuote();
+}
+
+function removeItem(uid) {
+  quoteItems = quoteItems.filter(i=>i.uid!==uid);
+  renderQuote();
+}
+
+function resetQuote() {
+  if (quoteItems.length > 0 && !confirm('¿Iniciar una nueva cotización? Se perderán los cambios actuales.')) return;
+  quoteItems = [];
+  quoteCounter++;
+  updateFolio();
+  document.getElementById('client-name').value = '';
+  document.getElementById('client-contact').value = '';
+  document.getElementById('client-city').value = '';
+  setDefaultExpiry();
+  renderQuote();
+  updateMeta();
+}
+
+function updateTotals() {
+  const sub = quoteItems.reduce((s,i) => s + i.price * i.qty, 0);
+  const iva = sub * 0.16;
+  const total = sub + iva;
+  document.getElementById('t-sub').textContent = fmtMXN(sub);
+  document.getElementById('t-iva').textContent = fmtMXN(iva);
+  document.getElementById('t-total').textContent = fmtMXN(total);
+}
+
+// ── STORE CONFIG ──
+function openStoreModal() {
+  document.getElementById('cfg-name').value = storeConfig.name;
+  document.getElementById('cfg-address').value = storeConfig.address;
+  document.getElementById('cfg-phone').value = storeConfig.phone;
+  document.getElementById('cfg-email').value = storeConfig.email;
+  document.getElementById('cfg-banking').value = storeConfig.banking;
+  document.getElementById('cfg-terms').value = storeConfig.terms;
+  document.getElementById('store-modal').classList.add('open');
+}
+function closeStoreModal() { document.getElementById('store-modal').classList.remove('open'); }
+function saveStoreConfig() {
+  storeConfig.name = document.getElementById('cfg-name').value || 'Mi Mueblería';
+  storeConfig.address = document.getElementById('cfg-address').value;
+  storeConfig.phone = document.getElementById('cfg-phone').value;
+  storeConfig.email = document.getElementById('cfg-email').value;
+  storeConfig.banking = document.getElementById('cfg-banking').value;
+  storeConfig.terms = document.getElementById('cfg-terms').value;
+  document.getElementById('brand-name').textContent = storeConfig.name;
+  closeStoreModal();
+  showToast('✓ Configuración guardada');
+}
+
+// ── PDF EXPORT ──
+async function exportPDF() {
+  if (quoteItems.length === 0) { showToast('Agrega productos antes de exportar'); return; }
+
+  showToast('Generando PDF…');
+
+  const n = String(quoteCounter).padStart(3,'0');
+  const today = new Date().toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  const expiryRaw = document.getElementById('quote-expiry').value;
+  const expiry = expiryRaw ? new Date(expiryRaw+'T00:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'}) : '—';
+  const clientName = document.getElementById('client-name').value || 'Sin nombre';
+  const clientContact = document.getElementById('client-contact').value;
+  const clientCity = document.getElementById('client-city').value;
+  const notes = document.getElementById('quote-notes')?.value || '';
+
+  const sub = quoteItems.reduce((s,i) => s + i.price * i.qty, 0);
+  const iva = sub * 0.16;
+  const total = sub + iva;
+
+  // Fill PDF template
+  document.getElementById('pdf-logo').textContent = storeConfig.name;
+  document.getElementById('pdf-store-addr').textContent = storeConfig.address;
+  document.getElementById('pdf-store-info').innerHTML = `${storeConfig.phone}<br>${storeConfig.email}`;
+  document.getElementById('pdf-folio-num').textContent = `COTIZACIÓN #${n}`;
+  document.getElementById('pdf-folio-date').textContent = `Fecha: ${today}`;
+  document.getElementById('pdf-folio-expiry').textContent = `Vigencia: ${expiry}`;
+  document.getElementById('pdf-folio-place').textContent = clientCity ? `Lugar: ${clientCity}` : '';
+  document.getElementById('pdf-client-name').textContent = clientName;
+  document.getElementById('pdf-client-contact').textContent = clientContact;
+  document.getElementById('pdf-store-name2').textContent = storeConfig.name;
+  document.getElementById('pdf-sub').textContent = fmtMXN(sub);
+  document.getElementById('pdf-iva').textContent = fmtMXN(iva);
+  document.getElementById('pdf-total').textContent = fmtMXN(total);
+  document.getElementById('pdf-banking-content').textContent = storeConfig.banking;
+  document.getElementById('pdf-footer-store').textContent = storeConfig.name;
+  document.getElementById('pdf-footer-folio').textContent = `Folio #${n}`;
+  document.getElementById('pdf-terms-section').textContent = storeConfig.terms;
+
+  const notesSection = document.getElementById('pdf-notes-section');
+  if (notes) {
+    notesSection.style.display = 'block';
+    document.getElementById('pdf-notes-text').textContent = notes;
+  } else {
+    notesSection.style.display = 'none';
+  }
+
+  // Build items rows (no external images to avoid CORS, use colored placeholders)
+  const itemsHtml = quoteItems.map(item => {
+    const itemSub = item.price * item.qty;
+    const itemTotal = itemSub * 1.16;
+    return `
+      <div class="pdf-item-row">
+        <div style="width:54px;height:54px;border-radius:6px;background:#E8E0D0;display:flex;align-items:center;justify-content:center;font-size:20px;">🛋</div>
+        <div>
+          <div class="pdf-item-name">${item.title}</div>
+          <div class="pdf-item-desc">${item.description.slice(0,80)}${item.description.length>80?'…':''}</div>
+          <div class="pdf-item-variant">Variante: ${item.variant}</div>
+        </div>
+        <div class="pdf-cell-right">${fmtMXN(item.price)}</div>
+        <div class="pdf-cell-center">${item.qty}</div>
+        <div class="pdf-cell-right">${fmtMXN(itemSub)}</div>
+        <div class="pdf-cell-right" style="font-weight:500;">${fmtMXN(itemTotal)}</div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('pdf-items-body').innerHTML = itemsHtml;
+
+  // Show template briefly for capture
+  const tmpl = document.getElementById('pdf-template');
+  tmpl.style.display = 'block';
+  tmpl.style.position = 'fixed';
+  tmpl.style.left = '-9999px';
+  tmpl.style.top = '0';
+
+  await new Promise(r => setTimeout(r, 200));
+
+  try {
+    const canvas = await html2canvas(tmpl, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', width: 794 });
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = (canvas.height * pdfW) / canvas.width;
+
+    let yPos = 0;
+    const pageH = pdf.internal.pageSize.getHeight();
+    let pageCount = 0;
+
+    while (yPos < pdfH) {
+      if (pageCount > 0) pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, -yPos, pdfW, pdfH);
+      yPos += pageH;
+      pageCount++;
+    }
+
+    pdf.save(`Cotizacion-${n}-${clientName.replace(/\s+/g,'-')}.pdf`);
+    showToast('✓ PDF descargado correctamente');
+  } catch(err) {
+    showToast('Error al generar PDF: ' + err.message);
+  } finally {
+    tmpl.style.display = 'none';
+  }
+}
+
+// ── UTILS ──
+function fmtMXN(n) {
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(n);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// Close modals on overlay click
+document.getElementById('variant-modal').addEventListener('click', function(e){ if(e.target===this) closeVariantModal(); });
+document.getElementById('store-modal').addEventListener('click', function(e){ if(e.target===this) closeStoreModal(); });
+
+init();
+</script>
+</body>
+</html>
