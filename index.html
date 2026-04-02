@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cotizador — Muebles</title>
+<title>Cotizador — Sakal Muebles y Decoración</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -484,7 +484,7 @@
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <div class="topbar-logo" id="brand-name">Mi Mueblería</div>
+  <div class="topbar-logo" id="brand-name"><img src="logo sakal.png" style="height:32px;object-fit:contain;vertical-align:middle;margin-right:8px;" onerror="this.style.display='none'">Sakal Muebles y Decoración</div>
   <div class="topbar-actions">
     <span class="shopify-status status-demo" id="conn-status">● Demo</span>
     <button class="btn btn-outline btn-sm" onclick="openStoreModal()">⚙ Configurar tienda</button>
@@ -520,7 +520,10 @@
         <div class="quote-folio" id="folio-display">Cotización #001</div>
         <div class="quote-meta" id="quote-meta-display">—</div>
       </div>
-      <button class="btn btn-outline" style="color:var(--text-muted);border-color:var(--border);font-size:12px;" onclick="resetQuote()">+ Nueva cotización</button>
+      <div style="display:flex;gap:8px;">
+  <button class="btn btn-outline" style="color:var(--text-muted);border-color:var(--border);font-size:12px;" onclick="openCustomModal()">+ Artículo personalizado</button>
+  <button class="btn btn-outline" style="color:var(--text-muted);border-color:var(--border);font-size:12px;" onclick="resetQuote()">+ Nueva cotización</button>
+</div>
     </div>
 
     <div class="client-strip">
@@ -552,13 +555,43 @@
     <div class="quote-footer">
       <div class="totals-grid">
         <div class="total-row"><span>Subtotal</span><span id="t-sub">$0.00</span></div>
-        <div class="total-row"><span>IVA (16%)</span><span id="t-iva">$0.00</span></div>
+        <div class="total-row" style="align-items:center;">
+          <span style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="desc-check" onchange="updateTotals()" style="width:16px;height:16px;cursor:pointer;">
+            Descuento
+            <input type="number" id="desc-pct" min="0" max="100" value="10" onchange="updateTotals()" style="width:52px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;">
+            %
+          </span>
+          <span id="t-desc" style="color:#c0392b;">-$0.00</span>
+        </div>
+        <div class="total-row" style="align-items:center;">
+          <span style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="iva-check" checked onchange="updateTotals()" style="width:16px;height:16px;cursor:pointer;">
+            IVA (16%)
+          </span>
+          <span id="t-iva">$0.00</span>
+        </div>
         <div class="total-row grand"><span>Total</span><span id="t-total">$0.00</span></div>
       </div>
       <div class="notes-area">
         <label>Notas / Condiciones de entrega</label>
         <textarea id="quote-notes" placeholder="Tiempo de entrega, condiciones especiales, etc."></textarea>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM PRODUCT MODAL -->
+<div class="modal-overlay" id="custom-modal">
+  <div class="modal">
+    <h2>Artículo personalizado</h2>
+    <div class="form-group"><label>Nombre del artículo</label><input type="text" id="custom-name" placeholder="Ej. Mesa a medida"></div>
+    <div class="form-group"><label>Descripción</label><textarea id="custom-desc" placeholder="Descripción del artículo..."></textarea></div>
+    <div class="form-group"><label>Cantidad</label><input type="number" id="custom-qty" placeholder="1" min="1" value="1"></div>
+    <div class="form-group"><label>Precio unitario</label><input type="number" id="custom-price" placeholder="0.00" min="0"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" style="color:var(--text-muted);border-color:var(--border);" onclick="closeCustomModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmCustomProduct()">Agregar a cotización</button>
     </div>
   </div>
 </div>
@@ -646,6 +679,7 @@
   <div class="pdf-total-section">
     <div class="pdf-totals">
       <div class="pdf-total-row"><span>Subtotal</span><span id="pdf-sub"></span></div>
+      <div class="pdf-total-row" id="pdf-desc-row" style="color:#c0392b;display:none;"><span id="pdf-desc-label">Descuento</span><span id="pdf-desc"></span></div>
       <div class="pdf-total-row"><span>IVA (16%)</span><span id="pdf-iva"></span></div>
       <div class="pdf-total-row grand"><span>Total</span><span id="pdf-total"></span></div>
     </div>
@@ -677,12 +711,12 @@ let quoteCounter = 1;
 let selectedVariant = null;
 let pendingProduct = null;
 let storeConfig = {
-  name: 'Mi Mueblería',
+  name: 'Sakal Muebles y Decoración',
   address: 'Mérida, Yucatán, México',
-  phone: '+52 999 000 0000',
-  email: 'ventas@mimuebleria.mx',
-  banking: 'Banco: BBVA\nCLABE: 0123 4567 8901 2345 67\nTitular: Mi Mueblería S.A. de C.V.',
-  terms: 'Precios en pesos mexicanos (MXN). IVA incluido en el total. Entrega sujeta a disponibilidad de inventario. Cotización vigente hasta la fecha indicada. Se requiere 50% de anticipo para apartar el pedido.'
+  phone: '9991110288',
+  email: 'contacto@sakalmacrame.com',
+  banking: 'Banco: BBVA\nCLABE: 012910004897525791\nCuenta: 0489752579\nTitular: Sakal Muebles y Decoración',
+  terms: 'Precios en pesos mexicanos (MXN). Cotización vigente por 30 dias. Se requiere 50% de anticipo para apartar el pedido.'
 };
 
 // ── DEMO PRODUCTS ──
@@ -699,11 +733,15 @@ const demoProducts = [
 
 // ── INIT ──
 function init() {
+  document.getElementById('shopify-store').value = 'macramexico.myshopify.com';
+  document.getElementById('shopify-token').value = 'ed5a6e0de155a2e7425099cabfb12492';
+  document.getElementById('brand-name').textContent = storeConfig.name;
   products = demoProducts;
   renderCatalog(products);
   updateFolio();
   setDefaultExpiry();
   updateMeta();
+  setTimeout(() => connectShopify(), 500);
 }
 
 function setDefaultExpiry() {
@@ -755,18 +793,17 @@ async function connectShopify() {
   document.getElementById('catalog-loading').style.display = 'block';
   document.getElementById('catalog-list').innerHTML = '';
 
-  const query = `{
-    products(first: 50) {
+  const fetchPage = async (cursor) => {
+    const after = cursor ? `, after: "${cursor}"` : '';
+    const query = `{ products(first:50${after}) {
+      pageInfo { hasNextPage endCursor }
       edges { node {
         id title description
         priceRange { minVariantPrice { amount } }
         images(first:1) { edges { node { url } } }
         variants(first:10) { edges { node { id title price { amount } } } }
       }}
-    }
-  }`;
-
-  try {
+    }}`;
     const res = await fetch(`https://${store}/api/2024-01/graphql.json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': token },
@@ -774,23 +811,32 @@ async function connectShopify() {
     });
     const data = await res.json();
     if (data.errors) throw new Error(data.errors[0].message);
+    return data.data.products;
+  };
 
-    products = data.data.products.edges.map(e => {
-      const n = e.node;
-      return {
-        id: n.id,
-        title: n.title,
-        description: n.description || '',
-        price: parseFloat(n.priceRange.minVariantPrice.amount),
-        image: n.images.edges[0]?.node.url || '',
-        variants: n.variants.edges.map(v => ({ name: v.node.title, price: parseFloat(v.node.price.amount) }))
-      };
-    });
-
+  try {
+    let allProducts = [], cursor = null, hasNext = true;
+    while (hasNext) {
+      const page = await fetchPage(cursor);
+      const mapped = page.edges.map(e => {
+        const n = e.node;
+        return {
+          id: n.id, title: n.title, description: n.description || '',
+          price: parseFloat(n.priceRange.minVariantPrice.amount),
+          image: n.images.edges[0]?.node.url || '',
+          variants: n.variants.edges.map(v => ({ name: v.node.title, price: parseFloat(v.node.price.amount) }))
+        };
+      });
+      allProducts = allProducts.concat(mapped);
+      hasNext = page.pageInfo.hasNextPage;
+      cursor = page.pageInfo.endCursor;
+      showToast('Cargando... ' + allProducts.length + ' productos');
+    }
+    products = allProducts;
     renderCatalog(products);
     document.getElementById('conn-status').textContent = '● Shopify conectado';
     document.getElementById('conn-status').className = 'shopify-status status-live';
-    showToast(`✓ ${products.length} productos cargados desde Shopify`);
+    showToast('✓ ' + products.length + ' productos cargados desde Shopify');
   } catch(err) {
     showToast('Error al conectar con Shopify: ' + err.message);
     renderCatalog(demoProducts);
@@ -841,27 +887,23 @@ function closeVariantModal() {
 
 function confirmVariant() {
   if (!selectedVariant && pendingProduct.variants.length > 1) { showToast('Selecciona una variante'); return; }
-  if (!selectedVariant) selectedVariant = { name: pendingProduct.variants[0]?.name || 'Estándar', price: pendingProduct.price };
-  closeVariantModal();
-
-  const existing = quoteItems.find(i => i.id === pendingProduct.id && i.variant === selectedVariant.name);
+  if (!selectedVariant) selectedVariant = { name: pendingProduct.variants[0]?.name || 'Estandar', price: pendingProduct.price };
+  var product = pendingProduct;
+  var variant = selectedVariant;
+  document.getElementById('variant-modal').classList.remove('open');
+  pendingProduct = null; selectedVariant = null;
+  var existing = quoteItems.find(function(i){ return i.id === product.id && i.variant === variant.name; });
   if (existing) {
     existing.qty++;
   } else {
     quoteItems.push({
-      id: pendingProduct.id,
-      title: pendingProduct.title,
-      description: pendingProduct.description,
-      image: pendingProduct.image,
-      price: selectedVariant.price || pendingProduct.price,
-      variant: selectedVariant.name,
-      qty: 1,
-      uid: Date.now()
+      id: product.id, title: product.title, description: product.description,
+      image: product.image, price: variant.price || product.price,
+      variant: variant.name, qty: 1, uid: Date.now()
     });
   }
   renderQuote();
-  showToast(`+ ${pendingProduct.title} agregado`);
-  pendingProduct = null; selectedVariant = null;
+  showToast('+ ' + product.title + ' agregado');
 }
 
 // ── QUOTE RENDER ──
@@ -880,7 +922,7 @@ function renderQuote() {
 
   body.innerHTML = quoteItems.map(item => `
     <div class="quote-item" id="qi-${item.uid}">
-      <img class="qi-img" src="${item.image}" alt="${item.title}" loading="lazy">
+      ${item.image ? `<img class="qi-img" src="${item.image}" alt="${item.title}" loading="lazy">` : `<div class="qi-img" style="display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--tan);">📦</div>`}
       <div class="qi-info">
         <div class="qi-name">${item.title}</div>
         <div class="qi-desc">${item.description.slice(0,100)}${item.description.length>100?'…':''}</div>
@@ -945,9 +987,14 @@ function resetQuote() {
 
 function updateTotals() {
   const sub = quoteItems.reduce((s,i) => s + i.price * i.qty, 0);
-  const iva = sub * 0.16;
-  const total = sub + iva;
+  const descCheck = document.getElementById('desc-check');
+  const descPct = parseFloat(document.getElementById('desc-pct') ? document.getElementById('desc-pct').value : 0) || 0;
+  const desc = descCheck && descCheck.checked ? sub * (descPct / 100) : 0;
+  const ivaCheck = document.getElementById('iva-check');
+  const iva = ivaCheck && ivaCheck.checked ? (sub - desc) * 0.16 : 0;
+  const total = sub - desc + iva;
   document.getElementById('t-sub').textContent = fmtMXN(sub);
+  if (document.getElementById('t-desc')) document.getElementById('t-desc').textContent = '-' + fmtMXN(desc);
   document.getElementById('t-iva').textContent = fmtMXN(iva);
   document.getElementById('t-total').textContent = fmtMXN(total);
 }
@@ -1005,9 +1052,7 @@ async function exportPDF() {
   document.getElementById('pdf-client-name').textContent = clientName;
   document.getElementById('pdf-client-contact').textContent = clientContact;
   document.getElementById('pdf-store-name2').textContent = storeConfig.name;
-  document.getElementById('pdf-sub').textContent = fmtMXN(sub);
-  document.getElementById('pdf-iva').textContent = fmtMXN(iva);
-  document.getElementById('pdf-total').textContent = fmtMXN(total);
+
   document.getElementById('pdf-banking-content').textContent = storeConfig.banking;
   document.getElementById('pdf-footer-store').textContent = storeConfig.name;
   document.getElementById('pdf-footer-folio').textContent = `Folio #${n}`;
@@ -1021,16 +1066,33 @@ async function exportPDF() {
     notesSection.style.display = 'none';
   }
 
-  // Build items rows (no external images to avoid CORS, use colored placeholders)
+  const descCheck = document.getElementById('desc-check');
+  const descPct = parseFloat(document.getElementById('desc-pct') ? document.getElementById('desc-pct').value : 0) || 0;
+  const pdfDesc = descCheck && descCheck.checked ? sub * (descPct / 100) : 0;
+  const pdfIva = document.getElementById('iva-check') && document.getElementById('iva-check').checked ? (sub - pdfDesc) * 0.16 : 0;
+  const pdfTotal = sub - pdfDesc + pdfIva;
+  document.getElementById('pdf-sub').textContent = fmtMXN(sub);
+  if (pdfDesc > 0) {
+    document.getElementById('pdf-desc-row').style.display = 'flex';
+    document.getElementById('pdf-desc-label').textContent = 'Descuento (' + descPct + '%)';
+    document.getElementById('pdf-desc').textContent = '-' + fmtMXN(pdfDesc);
+  }
+  document.getElementById('pdf-iva').textContent = fmtMXN(pdfIva);
+  document.getElementById('pdf-total').textContent = fmtMXN(pdfTotal);
+
+  const ivaOn = document.getElementById('iva-check') && document.getElementById('iva-check').checked;
   const itemsHtml = quoteItems.map(item => {
     const itemSub = item.price * item.qty;
-    const itemTotal = itemSub * 1.16;
+    const itemTotal = ivaOn ? itemSub * 1.16 : itemSub;
+    const imgHtml = item.image
+      ? `<img src="https://images.weserv.nl/?url=${encodeURIComponent(item.image)}&w=108&h=108&fit=cover&output=jpg" style="width:54px;height:54px;border-radius:6px;object-fit:cover;background:#E8E0D0;" crossorigin="anonymous" onerror="this.style.display='none'">`
+      : `<div style="width:54px;height:54px;border-radius:6px;background:#E8E0D0;"></div>`;
     return `
       <div class="pdf-item-row">
-        <div style="width:54px;height:54px;border-radius:6px;background:#E8E0D0;display:flex;align-items:center;justify-content:center;font-size:20px;">🛋</div>
+        <div>${imgHtml}</div>
         <div>
           <div class="pdf-item-name">${item.title}</div>
-          <div class="pdf-item-desc">${item.description.slice(0,80)}${item.description.length>80?'…':''}</div>
+          <div class="pdf-item-desc">${item.description ? item.description.slice(0,80)+(item.description.length>80?'…':'') : ''}</div>
           <div class="pdf-item-variant">Variante: ${item.variant}</div>
         </div>
         <div class="pdf-cell-right">${fmtMXN(item.price)}</div>
@@ -1091,9 +1153,31 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 
+function openCustomModal() {
+  document.getElementById('custom-name').value = '';
+  document.getElementById('custom-desc').value = '';
+  document.getElementById('custom-price').value = '';
+  document.getElementById('custom-qty').value = '1';
+  document.getElementById('custom-modal').classList.add('open');
+}
+function closeCustomModal() { document.getElementById('custom-modal').classList.remove('open'); }
+function confirmCustomProduct() {
+  const name = document.getElementById('custom-name').value.trim();
+  const desc = document.getElementById('custom-desc').value.trim();
+  const price = parseFloat(document.getElementById('custom-price').value) || 0;
+  const qty = parseInt(document.getElementById('custom-qty').value) || 1;
+  if (!name) { showToast('Escribe el nombre del artículo'); return; }
+  if (!price) { showToast('Escribe el precio del artículo'); return; }
+  quoteItems.push({ id: 'custom-' + Date.now(), title: name, description: desc, image: '', price: price, variant: 'Personalizado', qty: qty, uid: Date.now() });
+  closeCustomModal();
+  renderQuote();
+  showToast('+ ' + name + ' agregado');
+}
+
 // Close modals on overlay click
 document.getElementById('variant-modal').addEventListener('click', function(e){ if(e.target===this) closeVariantModal(); });
 document.getElementById('store-modal').addEventListener('click', function(e){ if(e.target===this) closeStoreModal(); });
+document.getElementById('custom-modal').addEventListener('click', function(e){ if(e.target===this) closeCustomModal(); });
 
 init();
 </script>
