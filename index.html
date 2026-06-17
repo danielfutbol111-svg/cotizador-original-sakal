@@ -431,8 +431,6 @@
     align-items: center;
     padding: 10px 0;
     border-bottom: 1px solid #F0EAE0;
-    page-break-inside: avoid;
-    break-inside: avoid;
   }
   .pdf-item-img { width: 54px; height: 54px; object-fit: cover; border-radius: 6px; background: #E8E0D0; }
   .pdf-item-name { font-size: 12px; font-weight: 500; color: #3D2B1F; }
@@ -1110,108 +1108,42 @@ async function exportPDF() {
   document.getElementById('pdf-items-body').innerHTML = itemsHtml;
 
   // Show template briefly for capture
-  // Show template briefly for capture
   const tmpl = document.getElementById('pdf-template');
   tmpl.style.display = 'block';
   tmpl.style.position = 'fixed';
   tmpl.style.left = '-9999px';
   tmpl.style.top = '0';
-  tmpl.style.width = '794px';
 
-  // Esperar a que carguen las imágenes
-  const imgs = tmpl.querySelectorAll('img');
-  await Promise.all(Array.from(imgs).map(img =>
-    img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
-  ));
-  await new Promise(r => setTimeout(r, 400));
+  await new Promise(r => setTimeout(r, 200));
 
   try {
+    const canvas = await html2canvas(tmpl, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', width: 794 });
+    const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = (canvas.height * pdfW) / canvas.width;
+
+    let yPos = 0;
     const pageH = pdf.internal.pageSize.getHeight();
+    let pageCount = 0;
 
-    const canvas = await html2canvas(tmpl, {
-      scale: 2, useCORS: true, allowTaint: true,
-      backgroundColor: '#fff', width: 794, windowWidth: 794,
-      scrollY: 0, logging: false
-    });
-
-    const canvasW = canvas.width;
-    const canvasH = canvas.height;
-    const scale = pdfW / (canvasW / 2);
-    const pageHeightPx = Math.floor(pageH / scale);
-
-    let yPx = 0;
-    let pageNum = 0;
-
-while (yPx < canvasH) {
-      if (pageNum > 0) pdf.addPage();
-
-      let cutPx = Math.min(yPx + pageHeightPx, canvasH);
-
-      if (cutPx < canvasH) {
-        const rows = tmpl.querySelectorAll('.pdf-item-row, .pdf-total-section, .pdf-banking, .pdf-footer');
-        for (const row of rows) {
-          const rect = row.getBoundingClientRect();
-          const tmplRect = tmpl.getBoundingClientRect();
-          const rowTopPx = (rect.top - tmplRect.top) * 2;
-          const rowBotPx = (rect.bottom - tmplRect.top) * 2;
-          if (rowTopPx < cutPx && rowBotPx > cutPx) {
-            cutPx = rowTopPx - 4;
-            break;
-          }
-        }
-        cutPx = Math.max(cutPx, yPx + 100);
-      }
-
-      const sliceH = cutPx - yPx;
-      const sliceCanvas = document.createElement('canvas');
-      sliceCanvas.width = canvasW;
-      sliceCanvas.height = sliceH;
-      const ctx = sliceCanvas.getContext('2d');
-      ctx.drawImage(canvas, 0, yPx, canvasW, sliceH, 0, 0, canvasW, sliceH);
-
-      const sliceHmm = (sliceH / 2) * scale;
-      pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, sliceHmm);
-
-      yPx = cutPx;
-      pageNum++;
-    }
-          }
-        }
-        cutPx = Math.max(cutPx, yPx + 100);
-      }
-
-      const sliceH = cutPx - yPx;
-      const sliceCanvas = document.createElement('canvas');
-      sliceCanvas.width = canvasW;
-      sliceCanvas.height = sliceH;
-      const ctx = sliceCanvas.getContext('2d');
-      ctx.drawImage(canvas, 0, yPx, canvasW, sliceH, 0, 0, canvasW, sliceH);
-
-      const sliceHmm = (sliceH / 2) * scale;
-      pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, sliceHmm);
-
-      yPx = cutPx;
-      pageNum++;
+    while (yPos < pdfH) {
+      if (pageCount > 0) pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, -yPos, pdfW, pdfH);
+      yPos += pageH;
+      pageCount++;
     }
 
     pdf.save(`Cotizacion-${n}-${clientName.replace(/\s+/g,'-')}.pdf`);
-    showToast('✓ PDF descargado · ' + pageNum + ' página' + (pageNum > 1 ? 's' : ''));
-    quoteCounter++;
-    updateFolio();
-
+    showToast('✓ PDF descargado correctamente');
   } catch(err) {
-    console.error('PDF error:', err);
     showToast('Error al generar PDF: ' + err.message);
   } finally {
     tmpl.style.display = 'none';
-    tmpl.style.removeProperty('position');
-    tmpl.style.removeProperty('left');
-    tmpl.style.removeProperty('top');
   }
 }
+
 // ── UTILS ──
 function fmtMXN(n) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(n);
