@@ -1145,7 +1145,7 @@ async function exportPDF() {
     let yPx = 0;
     let pageNum = 0;
 
-    while (yPx < canvasH) {
+while (yPx < canvasH) {
       if (pageNum > 0) pdf.addPage();
 
       let cutPx = Math.min(yPx + pageHeightPx, canvasH);
@@ -1160,6 +1160,24 @@ async function exportPDF() {
           if (rowTopPx < cutPx && rowBotPx > cutPx) {
             cutPx = rowTopPx - 4;
             break;
+          }
+        }
+        cutPx = Math.max(cutPx, yPx + 100);
+      }
+
+      const sliceH = cutPx - yPx;
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvasW;
+      sliceCanvas.height = sliceH;
+      const ctx = sliceCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, yPx, canvasW, sliceH, 0, 0, canvasW, sliceH);
+
+      const sliceHmm = (sliceH / 2) * scale;
+      pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, sliceHmm);
+
+      yPx = cutPx;
+      pageNum++;
+    }
           }
         }
         cutPx = Math.max(cutPx, yPx + 100);
